@@ -6,12 +6,14 @@
             <field name="model">account.voucher</field>
             <field name="inherit_id" ref="account_voucher.view_low_priority_payment_form" />
             <field name="arch" type="xml">
-                <!--<xpath expr="//form[@string='Bill Payment']/group/field[@name='partner_id']" position="replace">
-                    <field name="partner_id" required="1" string="Supplier" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id}"/>-->
                 <xpath expr="//form[@string='Bill Payment']/group/field[@name='partner_id']" position="after">
-                    <field name="tipo_tarjeta" on_change="onchange_tipo_tarjeta(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, context)"/>
-                    <!--on_change="onchange_tipo_tarjeta(tipo_tarjeta,partner_id, journal_id, amount, currency_id, type, date, context)"-->
+                    <field name="tipo_tarjeta"/>
+                    <field name="nro_tarjeta"/>
+                    <!--on_change="onchange_tipo_tarjeta(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, context)"-->
                     <field name="nro_cupon" />
+                </xpath>
+                <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']/tree[@string='Open Customer Journal Entries']/field[@name='amount_unreconciled']" position="after">
+                    <field name="allocate" on_change="onchange_allocate(allocate,amount_unreconciled)"/>
                 </xpath>
            </field>
         </record>
