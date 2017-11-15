@@ -109,15 +109,15 @@ class account_voucher(models.Model):
                 account_type = 'receivable'
 
         if not context.get('move_line_ids', False):
-            ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
-                                                  ('reconcile_id', '=', False), ('partner_id', '=', partner_id)],
-                                        context=context)
-            # if date_filterTo > date_filterFrom:
-            #     ids = move_line_pool.search(cr, uid, [('state','=','valid'), ('account_id.type', '=', account_type), ('reconcile_id', '=', False), ('partner_id', '=', partner_id), ('date_created', '>', date_filterFrom), ('date_created', '<', date_filterTo)], context=context)
-            # else:
-            #     ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
-            #                                           ('reconcile_id', '=', False), ('partner_id', '=', partner_id)],
-            #                                 context=context)
+            # ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
+            #                                       ('reconcile_id', '=', False), ('partner_id', '=', partner_id)],
+            #                             context=context)
+            if date_filterTo > date_filterFrom:
+                ids = move_line_pool.search(cr, uid, [('state','=','valid'), ('account_id.type', '=', account_type), ('reconcile_id', '=', False), ('partner_id', '=', partner_id), ('date_created', '>', date_filterFrom), ('date_created', '<', date_filterTo)], context=context)
+            else:
+                ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
+                                                      ('reconcile_id', '=', False), ('partner_id', '=', partner_id)],
+                                            context=context)
         else:
             ids = context['move_line_ids']
         invoice_id = context.get('invoice_id', False)
@@ -227,11 +227,11 @@ class account_voucher_line(models.Model):
     tipo_tarjeta = fields.Many2one(related='voucher_id.tipo_tarjeta', store=True, readonly=True, index=True)
 
     # def onchange_allocate(self, cr, uid, ids, allocate, amount_unreconciled, context=None):
-    def onchange_reconcile(self, cr, uid, ids, reconcile, amount_unreconciled, context=None):
-        vals = {'amount': 0.0}
-        if reconcile:
-            vals = {'amount': amount_unreconciled}
-        return {'value': vals}
+    # def onchange_reconcile(self, cr, uid, ids, reconcile, amount_unreconciled, context=None):
+    #     vals = {'amount': 0.0}
+    #     if reconcile:
+    #         vals = {'amount': amount_unreconciled}
+    #     return {'value': vals}
 
 
 class account_move_line(models.Model):

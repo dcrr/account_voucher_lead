@@ -19,7 +19,7 @@
                     </group>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']/tree[@string='Open Customer Journal Entries']/field[@name='amount_unreconciled']" position="after">
-                    <field name="reconcile" on_change="onchange_reconcile(reconcile,amount_unreconciled)"/>
+                    <field name="reconcile"/>
                 </xpath>
            </field>
         </record>
