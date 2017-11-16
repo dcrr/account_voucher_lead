@@ -1,4 +1,5 @@
 from openerp import models, fields, api, _
+from openerp.exceptions import Warning
 
 class account_voucher(models.Model):
     _inherit = 'account.voucher'
@@ -6,43 +7,12 @@ class account_voucher(models.Model):
     issuer_payment_method = fields.Many2one(related='journal_id.partner_id', store=False, readonly=True, index=True)
     date_filterFrom = fields.Date(string='From', index=True)
     date_filterTo = fields.Date(string='To', index=True)
-        # def onchange_partner_id(self, cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date, context=None):
-        #     if not journal_id:
-        #         return {}
-        #     if context is None:
-        #         context = {}
-        #     #TODO: comment me and use me directly in the sales/purchases views
-        #     res = self.basic_onchange_partner(cr, uid, ids, partner_id, journal_id, ttype, context=context)
-        #     if ttype in ['sale', 'purchase']:
-        #         return res
-        #     ctx = context.copy()
-        #     # not passing the payment_rate currency and the payment_rate in the context but it's ok because they are reset in recompute_payment_rate
-        #     ctx.update({'date': date})
-        #     vals = self.recompute_voucher_lines(cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date, context=ctx)
-        #     vals2 = self.recompute_payment_rate(cr, uid, ids, vals, currency_id, date, ttype, journal_id, amount, context=context)
-        #     for key in vals.keys():
-        #         res[key].update(vals[key])
-        #     for key in vals2.keys():
-        #         res[key].update(vals2[key])
-        #     #TODO: can probably be removed now
-        #     #TODO: onchange_partner_id() should not returns [pre_line, line_dr_ids, payment_rate...] for type sale, and not
-        #     # [pre_line, line_cr_ids, payment_rate...] for type purchase.
-        #     # We should definitively split account.voucher object in two and make distinct on_change functions. In the
-        #     # meanwhile, bellow lines must be there because the fields aren't present in the view, what crashes if the
-        #     # onchange returns a value for them
-        #     if ttype == 'sale':
-        #         del(res['value']['line_dr_ids'])
-        #         del(res['value']['pre_line'])
-        #         del(res['value']['payment_rate'])
-        #     elif ttype == 'purchase':
-        #         del(res['value']['line_cr_ids'])
-        #         del(res['value']['pre_line'])
-        #         del(res['value']['payment_rate'])
-        #     return res
 
-    def recompute_voucher_lines_new(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context=None):
-        """
-        Returns a dict that contains new values and context
+    #def recompute_voucher_lines_new(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context=None):
+    def recompute_voucher_lines(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date,
+                                tipo_tarjeta=False, nro_cupon=False, date_filterFrom=False, date_filterTo=False,
+                                context=None):
+        """Returns a dict that contains new values and context
 
         @param partner_id: latest value from user input for field partner_id
         @param args: other arguments
@@ -112,9 +82,22 @@ class account_voucher(models.Model):
             # ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
             #                                       ('reconcile_id', '=', False), ('partner_id', '=', partner_id)],
             #                             context=context)
-            if date_filterTo > date_filterFrom:
-                ids = move_line_pool.search(cr, uid, [('state','=','valid'), ('account_id.type', '=', account_type), ('reconcile_id', '=', False), ('partner_id', '=', partner_id), ('date_created', '>', date_filterFrom), ('date_created', '<', date_filterTo)], context=context)
+            if date_filterTo and date_filterFrom:
+                if date_filterTo > date_filterFrom:
+                    ids = move_line_pool.search(cr, uid, [('state','=','valid'), ('account_id.type', '=', account_type),
+                                                          ('reconcile_id', '=', False), ('partner_id', '=', partner_id),
+                                                          ('date_created', '>=', date_filterFrom), ('date_created',
+                                                            '<=', date_filterTo)], context=context)
+                else:
+                    #raise osv.except_osv(_("Warning!"), _("The final date can not be less than initial date."))
+                    raise Warning(_('The final date can not be less than initial date.'))
+            elif date_filterFrom:
+                ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
+                                                      ('reconcile_id', '=', False), ('partner_id', '=', partner_id),
+                                                      ('date_created', '>=', date_filterFrom)], context=context)
+
             else:
+
                 ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
                                                       ('reconcile_id', '=', False), ('partner_id', '=', partner_id)],
                                             context=context)
