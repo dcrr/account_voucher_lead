@@ -8,9 +8,9 @@
             <field name="arch" type="xml">
                 <xpath expr="//form[@string='Bill Payment']/group/field[@name='journal_id']" position="after">
                     <field name="tipo_tarjeta" on_change="recompute_voucher_lines_new(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
-                    <field name="nro_tarjeta" />
+                    <field name="nro_tarjeta"/>
                     <!--on_change="onchange_tipo_tarjeta(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, context)"-->
-                    <field name="nro_cupon" />
+                    <field name="nro_cupon" on_change="recompute_voucher_lines_new(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']" position="before">
                     <group col="4">
@@ -24,15 +24,15 @@
            </field>
         </record>
 
-        <record id="view_vendor_receipt_form2" model="ir.ui.view">
-            <field name="name">vendor.receipt.form2</field>
-            <field name="model">account.voucher</field>
-            <field name="inherit_id" ref="account_voucher.view_vendor_receipt_form" />
-            <field name="arch" type="xml">
-                <xpath expr="//form[@string='Receipt']/sheet/group/group/field[@name='journal_id']" position="after">
-                    <field name="issuer_payment_method" />
-                </xpath>
-           </field>
-        </record>
+        <!--<record id="view_vendor_receipt_form2" model="ir.ui.view">-->
+            <!--<field name="name">vendor.receipt.form2</field>-->
+            <!--<field name="model">account.voucher</field>-->
+            <!--<field name="inherit_id" ref="account_voucher.view_vendor_receipt_form" />-->
+            <!--<field name="arch" type="xml">-->
+                <!--<xpath expr="//form[@string='Receipt']/sheet/group/group/field[@name='journal_id']" position="after">-->
+                    <!--<field name="issuer_payment_method" />-->
+                <!--</xpath>-->
+           <!--</field>-->
+        <!--</record>-->
     </data>
 </openerp>
