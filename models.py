@@ -226,35 +226,21 @@ class account_voucher(models.Model):
         '''
         voucher = self.pool.get('account.voucher').browse(cr,uid,voucher_id,context)
         move_line_pool = self.pool.get('account.move.line')
-
-        move_line = {
-            'name': voucher.name or '/',
-            'debit': 0,
-            'credit': 0,
-            'account_id': voucher.journal_id.default_debit_account_id.id,
-            'move_id': move_id,
-            'journal_id': voucher.journal_id.id,
-            'period_id': voucher.period_id.id,
-            'partner_id': voucher.partner_id.id,
-            'currency_id': company_currency <> current_currency and current_currency or False,
-            'amount_currency': 0.0,
-            'date': voucher.date,
-            'date_maturity': voucher.date_due
-        }
-        move_line_ids = [move_line_pool.create(cr, uid, move_line, context)]
+        move_line_ids = []
 
         for voucher_line in voucher.line_dr_ids:
-            sign = 0 - voucher_line.amount < 0 and -1 or 1
+            sign = voucher_line.amount - 0 < 0 and -1 or 1
             move_line = {
                     'name': voucher.name or '/',
-                    'debit': 0,
-                    'credit': voucher_line.amount,
+                    'debit': voucher_line.amount,
+                    'credit': 0,
                     'account_id': voucher_line.account_id.id,
                     'move_id': move_id,
                     'journal_id': voucher.journal_id.id,
                     'period_id': voucher.period_id.id,
                     'partner_id': voucher.partner_id.id,
                     'currency_id': company_currency <> current_currency and  current_currency or False,
+                    #'amount_currency': 0.00,
                     'amount_currency': (sign * abs(voucher.amount) # amount < 0 for refunds
                         if company_currency != current_currency else 0.0),
                     'date': voucher.date,
@@ -263,19 +249,22 @@ class account_voucher(models.Model):
             move_line_id = move_line_pool.create(cr, uid, move_line, context)
             move_line_ids.append(move_line_id)
 
+        sumCredit =0
         for voucher_line in voucher.line_cr_ids:
             if voucher_line.reconcile:
-                sign = voucher_line.amount - 0 < 0 and -1 or 1
+                sign = 0 - voucher_line.amount < 0 and -1 or 1
+                sumCredit = sumCredit+voucher_line.amount
                 move_line = {
                         'name': voucher.name or '/',
-                        'debit': voucher_line.amount,
-                        'credit': 0,
+                        'debit': 0,
+                        'credit': voucher_line.amount,
                         'account_id': voucher_line.account_id.id,
                         'move_id': move_id,
                         'journal_id': voucher.journal_id.id,
                         'period_id': voucher.period_id.id,
                         'partner_id': voucher.partner_id.id,
                         'currency_id': company_currency <> current_currency and  current_currency or False,
+                        #'amount_currency': 0.00,
                         'amount_currency': (sign * abs(voucher.amount) # amount < 0 for refunds
                             if company_currency != current_currency else 0.0),
                         'date': voucher.date,
@@ -283,6 +272,25 @@ class account_voucher(models.Model):
                     }
                 move_line_id = move_line_pool.create(cr, uid, move_line, context)
                 move_line_ids.append(move_line_id)
+
+        sign =  sumCredit-0 < 0 and -1 or 1
+        move_line = {
+            'name': voucher.name or '/',
+            'debit': sumCredit,
+            'credit': 0,
+            'account_id': voucher.journal_id.default_debit_account_id.id,
+            'move_id': move_id,
+            'journal_id': voucher.journal_id.id,
+            'period_id': voucher.period_id.id,
+            'partner_id': voucher.partner_id.id,
+            'currency_id': company_currency <> current_currency and current_currency or False,
+            #'amount_currency': 0.00,
+            'amount_currency': (sign * abs(sumCredit)
+                                if company_currency != current_currency else 0.0),
+            'date': voucher.date,
+            'date_maturity': voucher.date_due
+        }
+        move_line_ids = [move_line_pool.create(cr, uid, move_line, context)]
 
         return move_line_ids
 
@@ -351,3 +359,48 @@ class account_voucher(models.Model):
             #     if len(rec_ids) >= 2:
             #         reconcile = move_line_pool.reconcile_partial(cr, uid, rec_ids, writeoff_acc_id=voucher.writeoff_acc_id.id, writeoff_period_id=voucher.period_id.id, writeoff_journal_id=voucher.journal_id.id)
         #return True
+
+class account_voucher_line(models.Model):
+    _inherit = 'account.voucher.line'
+
+    def onchange_move_line_id_new(self, cr, user, ids, move_line_id, context=None):
+        """
+        Returns a dict that contains new values and context
+
+        @param move_line_id: latest value from user input for field move_line_id
+        @param args: other arguments
+        @param context: context arguments, like lang, time zone
+
+        @return: Returns a dict which contains new values, and context
+        """
+        res = {}
+        move_line_pool = self.pool.get('account.move.line')
+        if move_line_id:
+            move_line = move_line_pool.browse(cr, user, move_line_id, context=context)
+            if move_line.credit:
+                ttype = 'dr'
+            else:
+                ttype = 'cr'
+            if move_line.move_id.inv_ref:
+                sumSpending = 0
+                for line in move_line.move_id.line_id:
+                    if line.debit and line.account_id.user_type.report_type == 'expense':
+                        sumSpending = sumSpending + line.debit
+                res.update({
+                    'account_id': line.account_id.id,
+                    'type': ttype,
+                    'currency_id': line.currency_id and line.currency_id.id or line.company_id.currency_id.id,
+                    'amount_original': sumSpending,
+                    'amount_unreconciled': sumSpending,
+                })
+            else:
+                res.update({
+                    'account_id': move_line.account_id.id,
+                    'type': ttype,
+                    'currency_id': move_line.currency_id and move_line.currency_id.id or move_line.company_id.currency_id.id,
+                    'amount_original': move_line.credit,
+                    'amount_unreconciled': move_line.credit,
+                })
+        return {
+            'value':res,
+        }

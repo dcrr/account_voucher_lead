@@ -9,8 +9,8 @@
                 <xpath expr="//form[@string='Bill Payment']/group" position="before">
                     <header>
                         <!--invisible="context.get('line_type', False)"-->
+                        <!--<button name="proforma_voucher" string="Validate" states="draft" class="oe_highlight"/>-->
                         <button name="payment_card_move_line_create" string="Validate" states="draft" type="object" class="oe_highlight"/>
-                        <!--proforma_voucher-->
                         <!--<button name="cancel_voucher" string="Cancel Receipt" states="draft,proforma"/>-->
                         <!--<button name="cancel_voucher" string="Unreconcile" type="object" states="posted" confirm="Are you sure to unreconcile and cancel this record ?"/>-->
                         <!--<button name="action_cancel_draft" type="object" states="cancel" string="Set to Draft"/>-->
@@ -20,8 +20,8 @@
                 <xpath expr="//form[@string='Bill Payment']/group/field[@name='journal_id']" position="after">
                     <field name="id" />
                     <!--invisible="1"-->
-                    <field name="tipo_tarjeta" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
                     <field name="nro_cupon" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
+                    <field name="tipo_tarjeta" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']" position="before">
                     <group col="4">
@@ -29,14 +29,23 @@
                     <field name="date_filterTo" attrs="{'invisible':[('id','!=',False)]}" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
                     </group>
                 </xpath>
+                <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_dr_ids']/tree[@string='Open Supplier Journal Entries']/field[@name='move_line_id']" position="replace">
+                    <field name="move_line_id" context="{'journal_id':parent.journal_id, 'partner_id':parent.partner_id}"
+                                        on_change="onchange_move_line_id_new(move_line_id)"
+                                        domain="[('account_id.type','=','payable'), ('reconcile_id','=', False), ('partner_id','=',parent.partner_id)]"/>
+                </xpath>
+                <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_dr_ids']/tree[@string='Open Supplier Journal Entries']/field[@name='amount_unreconciled']" position="after">
+                    <field name="reconcile" on_change="onchange_reconcile(reconcile, amount, amount_unreconciled, context)"/>
+                </xpath>
+                <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']/tree[@string='Open Customer Journal Entries']/field[@name='amount_unreconciled']" position="after">
+                    <field name="reconcile" on_change="onchange_reconcile(reconcile, amount, amount_unreconciled, context)"/>
+                </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook" position="inside">
                     <page string="Move">
                         <field name="payment_card_move_ids"/>
                     </page>
                 </xpath>
-                <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']/tree[@string='Open Customer Journal Entries']/field[@name='amount_unreconciled']" position="after">
-                    <field name="reconcile" on_change="onchange_reconcile(reconcile, amount, amount_unreconciled, context)"/>
-                </xpath>
+
            </field>
         </record>
     </data>
