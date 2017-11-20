@@ -10,9 +10,10 @@ class account_voucher(models.Model):
     payment_card_move_ids = fields.One2many(related='move_id.line_id', store=False, string='Move', readonly=False) #, readonly=True
 
     #def recompute_voucher_lines_new(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context=None):
-    def recompute_voucher_lines(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date,
-                                tipo_tarjeta=False, nro_cupon=False, date_filterFrom=False, date_filterTo=False,
-                                context=None):
+    # def recompute_voucher_lines(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date,
+    #                             tipo_tarjeta=False, nro_cupon=False, date_filterFrom=False, date_filterTo=False,
+    #                             context=None):
+    def recompute_voucher_lines(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date, context=None):
         """Returns a dict that contains new values and context
 
         @param partner_id: latest value from user input for field partner_id
@@ -21,6 +22,10 @@ class account_voucher(models.Model):
 
         @return: Returns a dict which contains new values, and context
         """
+        tipo_tarjeta = context.get('tipo_tarjeta')
+        nro_cupon =  context.get('nro_cupon')
+        date_filterFrom = context.get('date_filterFrom')
+        date_filterTo = context.get('date_filterTo')
         def _remove_noise_in_o2m():
             """if the line is partially reconciled, then we must pay attention to display it only once and
                 in the good o2m.
@@ -229,7 +234,7 @@ class account_voucher(models.Model):
         move_line_ids = []
 
         for voucher_line in voucher.line_dr_ids:
-            sign = voucher_line.amount - 0 < 0 and -1 or 1
+            sign = voucher_line.amount -0 < 0 and -1 or 1
             move_line = {
                     'name': voucher.name or '/',
                     'debit': voucher_line.amount,

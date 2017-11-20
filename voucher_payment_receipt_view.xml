@@ -9,24 +9,33 @@
                 <xpath expr="//form[@string='Bill Payment']/group" position="before">
                     <header>
                         <!--invisible="context.get('line_type', False)"-->
-                        <!--<button name="proforma_voucher" string="Validate" states="draft" class="oe_highlight"/>-->
-                        <button name="payment_card_move_line_create" string="Validate" states="draft" type="object" class="oe_highlight"/>
-                        <!--<button name="cancel_voucher" string="Cancel Receipt" states="draft,proforma"/>-->
-                        <!--<button name="cancel_voucher" string="Unreconcile" type="object" states="posted" confirm="Are you sure to unreconcile and cancel this record ?"/>-->
-                        <!--<button name="action_cancel_draft" type="object" states="cancel" string="Set to Draft"/>-->
-                        <!--<field name="state" widget="statusbar" statusbar_visible="draft,posted" statusbar_colors="{&quot;proforma&quot;:&quot;blue&quot;}"/>-->
+                        <button name="proforma_voucher" string="Validate" states="draft" class="oe_highlight"/>
+                        <!--<button name="payment_card_move_line_create" string="Validate" states="draft" type="object" class="oe_highlight"/>-->
+                        <button name="cancel_voucher" string="Cancel Receipt" states="draft,proforma"/>
+                        <button name="cancel_voucher" string="Unreconcile" type="object" states="posted" confirm="Are you sure to unreconcile and cancel this record ?"/>
+                        <button name="action_cancel_draft" type="object" states="cancel" string="Set to Draft"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,posted" statusbar_colors="{&quot;proforma&quot;:&quot;blue&quot;}"/>
                     </header>
                 </xpath>
-                <xpath expr="//form[@string='Bill Payment']/group/field[@name='journal_id']" position="after">
+                <xpath expr="//form[@string='Bill Payment']/group/field[@name='partner_id']" position="replace">
                     <field name="id" />
-                    <!--invisible="1"-->
-                    <field name="nro_cupon" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
-                    <field name="tipo_tarjeta" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
+                    <field name="partner_id" required="1" on_change="onchange_partner_id(partner_id, journal_id, amount, currency_id, type, date, context)" string="Supplier" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
+                </xpath>
+                <xpath expr="//form[@string='Bill Payment']/group/field[@name='amount']" position="replace">
+                    <field name="amount" on_change="onchange_amount(amount, payment_rate, partner_id, journal_id, currency_id, type, date, payment_rate_currency_id, company_id, context)" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
+                </xpath>
+                <xpath expr="//form[@string='Bill Payment']/group/field[@name='journal_id']" position="replace">
+                    <field name="journal_id" domain="[('type','in',['bank', 'cash'])]" widget="selection"
+                            on_change="onchange_journal(journal_id, line_dr_ids, False, partner_id, date, amount, type, company_id, context)"
+                            string="Payment Method" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
+                    <field name="nro_cupon" on_change="onchange_partner_id(partner_id, journal_id, amount, currency_id, type, date, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
+                    <!--on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"-->
+                    <field name="tipo_tarjeta" on_change="onchange_partner_id(partner_id, journal_id, amount, currency_id, type, date, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']" position="before">
                     <group col="4">
-                    <field name="date_filterFrom" attrs="{'invisible':[('id','!=',False)]}" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
-                    <field name="date_filterTo" attrs="{'invisible':[('id','!=',False)]}" on_change="recompute_voucher_lines(partner_id, journal_id, amount, currency_id, type, date, tipo_tarjeta, nro_cupon, date_filterFrom, date_filterTo, context)"/>
+                    <field name="date_filterFrom" attrs="{'invisible':[('id','!=',False)]}" on_change="onchange_partner_id(partner_id, journal_id, amount, currency_id, type, date, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
+                    <field name="date_filterTo" attrs="{'invisible':[('id','!=',False)]}" on_change="onchange_partner_id(partner_id, journal_id, amount, currency_id, type, date, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                     </group>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_dr_ids']/tree[@string='Open Supplier Journal Entries']/field[@name='move_line_id']" position="replace">
