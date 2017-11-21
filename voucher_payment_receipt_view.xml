@@ -7,14 +7,13 @@
             <field name="inherit_id" ref="account_voucher.view_low_priority_payment_form" />
             <field name="arch" type="xml">
                 <xpath expr="//form[@string='Bill Payment']/group" position="before">
-                    <header>
-                        <!--invisible="context.get('line_type', False)"-->
-                        <button name="proforma_voucher" string="Validate" states="draft" class="oe_highlight"/>
+                    <header invisible="context.get('line_type', False)">
                         <!--<button name="payment_card_move_line_create" string="Validate" states="draft" type="object" class="oe_highlight"/>-->
+                        <button name="proforma_voucher" string="Validate" states="draft" class="oe_highlight"/>
                         <button name="cancel_voucher" string="Cancel Receipt" states="draft,proforma"/>
                         <button name="cancel_voucher" string="Unreconcile" type="object" states="posted" confirm="Are you sure to unreconcile and cancel this record ?"/>
                         <button name="action_cancel_draft" type="object" states="cancel" string="Set to Draft"/>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,posted" statusbar_colors="{&quot;proforma&quot;:&quot;blue&quot;}"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,posted" statusbar_colors='{"proforma":"blue"}'/>
                     </header>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/group/field[@name='partner_id']" position="replace">
@@ -22,7 +21,8 @@
                     <field name="partner_id" required="1" on_change="onchange_partner_id(partner_id, journal_id, amount, currency_id, type, date, context)" string="Supplier" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/group/field[@name='amount']" position="replace">
-                    <field name="amount" on_change="onchange_amount(amount, payment_rate, partner_id, journal_id, currency_id, type, date, payment_rate_currency_id, company_id, context)" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
+                    <!--<field name="amount" on_change="onchange_amount_new(amount, payment_rate, currency_id, date, payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids)" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>-->
+                    <field name="amount" on_change="onchange_amount_new(amount, payment_rate, partner_id, journal_id, currency_id, type, date, payment_rate_currency_id, company_id, context)" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/group/field[@name='journal_id']" position="replace">
                     <field name="journal_id" domain="[('type','in',['bank', 'cash'])]" widget="selection"
@@ -39,7 +39,7 @@
                     </group>
                 </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_dr_ids']/tree[@string='Open Supplier Journal Entries']/field[@name='move_line_id']" position="replace">
-                    <field name="move_line_id" context="{'journal_id':parent.journal_id, 'partner_id':parent.partner_id}"
+                    <field name="move_line_id" context="{'journal_id':parent.journal_id, 'partner_id':parent.partner_id, 'currency_id':parent.currency_id}"
                                         on_change="onchange_move_line_id_new(move_line_id)"
                                         domain="[('account_id.type','=','payable'), ('reconcile_id','=', False), ('partner_id','=',parent.partner_id)]"/>
                 </xpath>
@@ -49,12 +49,20 @@
                 <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/field[@name='line_cr_ids']/tree[@string='Open Customer Journal Entries']/field[@name='amount_unreconciled']" position="after">
                     <field name="reconcile" on_change="onchange_reconcile(reconcile, amount, amount_unreconciled, context)"/>
                 </xpath>
+                <xpath expr="//form[@string='Bill Payment']/notebook/page[@string='Payment Information']/group/group[@string='Internal Notes']" position="after">
+                    <group string="Writeoff Amount">
+                        <field name="writeoff_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                        <field name="payment_option" required="1" attrs="{'invisible':[('writeoff_amount','=',0)]}"/>
+                        <field name="writeoff_acc_id" attrs="{'invisible':['|', ('payment_option','!=','with_writeoff'), ('writeoff_amount','=',0)], 'required':[('payment_option','=','with_writeoff')]}" domain="[('type','=','other')]"/>
+                        <field name="comment" attrs="{'invisible':['|', ('payment_option','!=','with_writeoff'), ('writeoff_amount','=',0)]}"/>
+                        <field name="analytic_id" groups="analytic.group_analytic_accounting" attrs="{'invisible':['|', ('payment_option','!=','with_writeoff'), ('writeoff_amount','=',0)]}"/>
+                    </group>
+                </xpath>
                 <xpath expr="//form[@string='Bill Payment']/notebook" position="inside">
                     <page string="Move">
                         <field name="payment_card_move_ids"/>
                     </page>
                 </xpath>
-
            </field>
         </record>
     </data>
