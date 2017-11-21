@@ -89,18 +89,18 @@ class account_voucher(models.Model):
             #                                       ('reconcile_id', '=', False), ('partner_id', '=', partner_id)],
             #                             context=context)
             if date_filterTo and date_filterFrom:
-                if date_filterTo > date_filterFrom:
+                if date_filterTo >= date_filterFrom:
                     ids = move_line_pool.search(cr, uid, [('state','=','valid'), ('account_id.type', '=', account_type),
                                                           ('reconcile_id', '=', False), ('partner_id', '=', partner_id),
-                                                          ('date_created', '>=', date_filterFrom), ('date_created',
-                                                            '<=', date_filterTo)], context=context)
+                                                          ('date', '>=', date_filterFrom), ('date','<=', date_filterTo)]
+                                                          , context=context)
                 else:
                     #raise osv.except_osv(_("Warning!"), _("The final date can not be less than initial date."))
                     raise Warning(_('The final date can not be less than initial date.'))
             elif date_filterFrom:
                 ids = move_line_pool.search(cr, uid, [('state', '=', 'valid'), ('account_id.type', '=', account_type),
                                                       ('reconcile_id', '=', False), ('partner_id', '=', partner_id),
-                                                      ('date_created', '>=', date_filterFrom)], context=context)
+                                                      ('date', '>=', date_filterFrom)], context=context)
 
             else:
 
