@@ -9,9 +9,6 @@ class account_voucher(models.Model):
     date_filterTo = fields.Date(string='To', index=True)
     payment_card_move_ids = fields.One2many(related='move_id.line_id', store=False, string='Move', readonly=False) #, readonly=True
 
-    # def recompute_voucher_lines(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date,
-    #                             tipo_tarjeta=False, nro_cupon=False, date_filterFrom=False, date_filterTo=False,
-    #                             context=None):
     def recompute_voucher_lines(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date, context=None):
         """Returns a dict that contains new values and context
 
@@ -366,7 +363,7 @@ class account_voucher(models.Model):
 
     #def onchange_amount_new(self, cr, uid, ids, amount, rate, currency_id, date, payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context=None):
     def onchange_amount_new(self, cr, uid, ids, amount, rate, partner_id, journal_id, currency_id, ttype, date,
-                            payment_rate_currency_id, company_id, context=None):
+                            payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context=None):
         if context is None:
             context = {}
         ctx = context.copy()
@@ -377,14 +374,45 @@ class account_voucher(models.Model):
         ctx.update({
             'voucher_special_currency': payment_rate_currency_id,
             'voucher_special_currency_rate': rate * voucher_rate})
-        #res = line_dr_ids + line_cr_ids
-        res = self.recompute_voucher_lines(cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date,
-                                            context=ctx)
-        del res['value']['line_dr_ids']
-        del res['value']['line_cr_ids']
+        # res = self.recompute_voucher_lines(cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date,
+        #                                     context=ctx)
+        res = self.onchange_line_ids(cr, uid, ids, line_dr_ids, line_cr_ids, amount, currency_id, ttype, context=ctx)
         vals = self.onchange_rate(cr, uid, ids, rate, amount, currency_id, payment_rate_currency_id, company_id, context=ctx)
         for key in vals.keys():
             res[key].update(vals[key])
+        return res
+
+    def onchange_nro_cupon(self, cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date, context=None):
+        if not journal_id:
+            return {}
+        if context is None:
+            context = {}
+        #TODO: comment me and use me directly in the sales/purchases views
+        res = self.basic_onchange_partner(cr, uid, ids, partner_id, journal_id, ttype, context=context)
+        if ttype in ['sale', 'purchase']:
+            return res
+        ctx = context.copy()
+        # not passing the payment_rate currency and the payment_rate in the context but it's ok because they are reset in recompute_payment_rate
+        ctx.update({'date': date})
+        vals = self.recompute_voucher_lines(cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date, context=ctx)
+
+        if ttype != 'sale' and ttype != 'purchase':
+            del vals['value']['line_dr_ids']
+
+        vals2 = self.recompute_payment_rate(cr, uid, ids, vals, currency_id, date, ttype, journal_id, amount, context=context)
+        for key in vals.keys():
+            res[key].update(vals[key])
+        for key in vals2.keys():
+            res[key].update(vals2[key])
+
+        if ttype == 'sale':
+            del(res['value']['line_dr_ids'])
+            del(res['value']['pre_line'])
+            del(res['value']['payment_rate'])
+        elif ttype == 'purchase':
+            del(res['value']['line_cr_ids'])
+            del(res['value']['pre_line'])
+            del(res['value']['payment_rate'])
         return res
 
     def onchange_rate(self, cr, uid, ids, rate, amount, currency_id, payment_rate_currency_id, company_id, context=None):
@@ -419,19 +447,7 @@ class account_voucher_line(models.Model):
                 ttype = 'dr'
             else:
                 ttype = 'cr'
-            # if move_line.move_id.inv_ref:
-            #     sumSpending = 0
-            #     for line in move_line.move_id.line_id:
-            #         if line.debit and line.account_id.user_type.report_type == 'expense':
-            #             sumSpending = sumSpending + line.debit
-            #     res.update({
-            #         'account_id': line.account_id.id,
-            #         'type': ttype,
-            #         'currency_id': line.currency_id and line.currency_id.id or line.company_id.currency_id.id,
-            #         'amount_original': sumSpending,
-            #         'amount_unreconciled': sumSpending,
-            #     })
-            # else:
+
             currency_pool = self.pool.get('res.currency')
             if move_line.currency_id and currency_id == move_line.currency_id.id:
                 amount_original = abs(move_line.amount_currency)
