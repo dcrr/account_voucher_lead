@@ -470,3 +470,43 @@ class account_voucher_line(models.Model):
         return {
             'value':res,
         }
+
+class account_move_line(models.Model):
+    _inherit = 'account.move.line'
+
+    def name_get(self, cr, uid, ids, context=None):
+        if context is None:
+            context = {}
+        # Add field no_comp to name present on low_priority_payment_form2 form for fields line_dr_ids
+        # where it is add element 'special_display_name' in a context
+        if context.get('special_display_name'):
+            def _name(obj):
+                #return ('%s' % (obj.no_comp)).strip()
+                return ('%s%s%s' % (obj.move_id.name or '',
+                                    obj.invoice and obj.invoice.name and (' (Factura: %s, a nombre de: %s)' % (obj.invoice.name, obj.invoice.partner_id.name)) or '',
+                                    ("/%s" % obj.no_comp))
+                        ).strip()
+            res = [(obj.id, _name(obj)) for obj in self.browse(cr, uid, ids, context)]
+        else:
+            return super(account_move_line,self).name_get(cr, uid, ids, context=context)
+        return res
+
+    def name_search(self, cr, uid, name='', args=None, operator='ilike', context=None, limit=100):
+        name = str(name).strip()
+        args_from_name = []
+
+        if name:
+            parts = str(name).split()
+            args = list(args or ())
+            for part in parts:
+                args_from_name.extend(['|', '|', '|', '|', '|',
+                                       ('invoice.name', operator, part),
+                                       ('invoice.internal_number', operator, part),
+                                       ('invoice.partner_id.name', operator, part),
+                                       ('move_id.name', operator, part),
+                                       ('ref', operator, part),
+                                       ('no_comp', operator, part)])
+                args_from_name.insert(0, '|')
+            args_from_name.pop(0)
+            name = ''
+        return super(account_move_line, self).name_search(cr, uid, name, args + args_from_name, operator, limit=limit, context=context)
