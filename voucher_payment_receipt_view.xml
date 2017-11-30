@@ -4,11 +4,9 @@
         <record id="low_priority_payment_form2" model="ir.ui.view">
             <field name="name">low.priority.payment.form2</field>
             <field name="model">account.voucher</field>
-            <field name="inherit_id" ref="account_voucher.view_low_priority_payment_form" />
             <field name="arch" type="xml">
-                <xpath expr="//form[@string='Bill Payment']" position="replace">
-                    <form string="Bill Payment">
-                        <header invisible="context.get('line_type', False)">
+                    <form string="Credit Card Settlement">
+                        <header>
                             <button name="proforma_voucher" string="Validate" states="draft" class="oe_highlight"/>
                             <button name="cancel_voucher" string="Cancel Receipt" states="draft,proforma"/>
                             <button name="cancel_voucher" string="Unreconcile" type="object" states="posted" confirm="Are you sure to unreconcile and cancel this record ?"/>
@@ -34,8 +32,8 @@
                         </group>
                         <notebook>
                             <page string="Payment Information">
-                                <label for="line_dr_ids" attrs="{'invisible': [('type', '=', 'receipt')]}"/>
-                                <field name="line_dr_ids" attrs="{'invisible': [('type', '=', 'receipt')]}" context="{'journal_id':journal_id, 'type':type, 'partner_id':partner_id}" colspan="4" nolabel="1" height="140" on_change="onchange_line_ids(line_dr_ids, line_cr_ids, amount, currency_id, type, context)">
+                                <label for="line_dr_ids"/>
+                                <field name="line_dr_ids" context="{'journal_id':journal_id, 'type':type, 'partner_id':partner_id}" colspan="4" nolabel="1" height="140" on_change="onchange_line_ids(line_dr_ids, line_cr_ids, amount, currency_id, type, context)">
                                     <tree string="Open Supplier Journal Entries" editable="bottom" colors="gray:amount==0">
                                         <field name="move_line_id" context="{'journal_id':parent.journal_id, 'partner_id':parent.partner_id, 'currency_id':parent.currency_id, 'special_display_name': True}"
                                             on_change="onchange_move_line_id_new(move_line_id)"
@@ -93,7 +91,6 @@
                             </page>
                         </notebook>
                     </form>
-                </xpath>
            </field>
         </record>
 
@@ -101,8 +98,22 @@
             <field name="name">Credit Card Settlement</field>
             <field name="res_model">account.voucher</field>
             <field name="view_type">form</field>
-            <field name="view_id" ref="pagos_tarjeta_credito-master.view_pagos_tarjeta_tree" />
+            <field name="context">{'type':'receipt'}</field>
             <field name="view_mode">tree,form</field>
+        </record>
+
+        <record model="ir.actions.act_window.view" id="action_view_account_voucher_lead_tree">
+            <field eval="1" name="sequence"/>
+            <field name="view_mode">tree</field>
+            <field name="view_id" ref="pagos_tarjeta_credito-master.view_pagos_tarjeta_tree"/>
+            <field name="act_window_id" ref="action_view_credit_card_settlement"/>
+        </record>
+
+        <record model="ir.actions.act_window.view" id="action_view_account_voucher_lead_form">
+            <field eval="2" name="sequence"/>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="low_priority_payment_form2"/>
+            <field name="act_window_id" ref="action_view_credit_card_settlement"/>
         </record>
 
         <menuitem action="action_view_credit_card_settlement" id="menu_credit_card_settlement"
