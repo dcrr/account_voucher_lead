@@ -214,6 +214,16 @@ class account_voucher(models.Model):
             default['value']['writeoff_amount'] = self._compute_writeoff_amount(cr, uid, default['value']['line_dr_ids'], default['value']['line_cr_ids'], price, ttype)
         return default
 
+    def update_values(self,cr, uid, ids, context=None):
+        if context is None:
+            context = {}
+            return {}
+        res = self.onchange_amount_new(cr, uid, ids, context.get('amount'), context.get('rate'), context.get('currency_id'),
+                                       context.get('type'), context.get('date'), context.get('payment_rate_currency_id'),
+                                       context.get('company_id'), context.get('line_dr_ids'), context.get('line_cr_ids'),
+                                       context)
+        return res
+
     # def payment_card_move_lines_get(self, cr, uid, voucher_id, move_id, company_currency, current_currency, context=None):
     #     '''
     #     Return a dict to be use to create the first account move line of given voucher.
@@ -362,7 +372,7 @@ class account_voucher(models.Model):
     #     #return True
 
     #def onchange_amount_new(self, cr, uid, ids, amount, rate, currency_id, date, payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context=None):
-    def onchange_amount_new(self, cr, uid, ids, amount, rate, partner_id, journal_id, currency_id, ttype, date,
+    def onchange_amount_new(self, cr, uid, ids, amount, rate, currency_id, ttype, date,
                             payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context=None):
         if context is None:
             context = {}

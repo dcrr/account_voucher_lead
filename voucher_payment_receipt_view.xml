@@ -17,7 +17,7 @@
                             <field name="id" />
                             <field name="partner_id" required="1" on_change="onchange_partner_id(partner_id, journal_id, amount, currency_id, type, date, context)" string="Supplier" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                             <field name="nro_cupon" on_change="onchange_nro_cupon(partner_id, journal_id, amount, currency_id, type, date, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
-                            <field name="amount" on_change="onchange_amount_new(amount, payment_rate, partner_id, journal_id, currency_id, type, date, payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context)" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
+                            <field name="amount" on_change="onchange_amount_new(amount, payment_rate, currency_id, type, date, payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context)" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                             <field name="journal_id" domain="[('type','in',['bank', 'cash'])]" widget="selection" on_change="onchange_journal(journal_id, line_dr_ids, False, partner_id, date, amount, type, company_id, context)" string="Payment Method" context="{'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                             <field name="tipo_tarjeta" on_change="onchange_nro_cupon(partner_id, journal_id, amount, currency_id, type, date, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                             <field name="date" on_change="onchange_date(date, currency_id, payment_rate_currency_id, amount, company_id, context)"/>
@@ -33,7 +33,8 @@
                         <notebook>
                             <page string="Payment Information">
                                 <label for="line_dr_ids"/>
-                                <field name="line_dr_ids" context="{'journal_id':journal_id, 'type':type, 'partner_id':partner_id}" colspan="4" nolabel="1" height="140" on_change="onchange_line_ids(line_dr_ids, line_cr_ids, amount, currency_id, type, context)">
+                                <!--on_change="onchange_line_ids(line_dr_ids, line_cr_ids, amount, currency_id, type, context)"-->
+                                <field name="line_dr_ids" context="{'journal_id':journal_id, 'type':type, 'partner_id':partner_id}" colspan="4" nolabel="1" height="140">
                                     <tree string="Open Supplier Journal Entries" editable="bottom" colors="gray:amount==0">
                                         <field name="move_line_id" context="{'journal_id':parent.journal_id, 'partner_id':parent.partner_id, 'currency_id':parent.currency_id, 'special_display_name': True}"
                                             on_change="onchange_move_line_id_new(move_line_id)"
@@ -52,7 +53,8 @@
                                     <field name="date_filterTo" attrs="{'invisible':[('id','!=',False)]}" on_change="onchange_nro_cupon(partner_id, journal_id, amount, currency_id, type, date, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1, 'invoice_currency': currency_id, 'tipo_tarjeta': tipo_tarjeta, 'nro_cupon': nro_cupon, 'date_filterFrom':date_filterFrom, 'date_filterTo':date_filterTo}"/>
                                 </group>
                                 <label for="line_cr_ids" attrs="{'invisible': [('type', '=', 'payment')]}"/>
-                                <field name="line_cr_ids" attrs="{'invisible': [('type', '=', 'payment')]}" context="{'journal_id':journal_id, 'partner_id':partner_id}" on_change="onchange_line_ids(line_dr_ids, line_cr_ids, amount, currency_id, type, context)">
+                                <!--on_change="onchange_line_ids(line_dr_ids, line_cr_ids, amount, currency_id, type, context)"-->
+                                <field name="line_cr_ids" attrs="{'invisible': [('type', '=', 'payment')]}" context="{'journal_id':journal_id, 'partner_id':partner_id}">
                                     <tree string="Open Customer Journal Entries" editable="bottom" colors="gray:amount==0">
                                         <field name="move_line_id" context="{'journal_id':parent.journal_id, 'partner_id':parent.partner_id}"
                                             on_change="onchange_move_line_id(move_line_id)"
@@ -71,6 +73,7 @@
                                         <field name="narration" nolabel="1" colspan="2"/>
                                     </group>
                                     <group>
+                                        <button name="update_values" colspan="2" states="draft" string="(update)" class="oe_link oe_edit_only" type="object" help="Recompute values" context="{'amount':amount, 'rate':payment_rate, 'currency_id':currency_id, 'type':type, 'date':date, 'payment_rate_currency_id':payment_rate_currency_id, 'company_id':company_id, 'line_dr_ids':line_dr_ids, 'line_cr_ids':line_cr_ids}"/>
                                         <field name="writeoff_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                         <field name="payment_option" required="1" attrs="{'invisible':[('writeoff_amount','=',0)]}"/>
                                         <field name="writeoff_acc_id" attrs="{'invisible':['|', ('payment_option','!=','with_writeoff'), ('writeoff_amount','=',0)], 'required':[('payment_option','=','with_writeoff')]}" domain="[('type','=','other')]"/>
