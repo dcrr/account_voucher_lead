@@ -16,34 +16,56 @@ class account_voucher(models.Model):
     def update_values(self, cr, uid, ids, context=None):
         if context is None or context == {}:
             return {}
-        res = self.onchange_amount_new(cr, uid, ids, context.get('amount'), context.get('rate'),
-                                       context.get('currency_id'),
-                                       context.get('type'), context.get('date'),
-                                       context.get('payment_rate_currency_id'),
-                                       context.get('company_id'), context.get('line_dr_ids'),
-                                       context.get('line_cr_ids'),
-                                       context)
+        # res = self.onchange_amount_new(cr, uid, ids, context.get('amount'), context.get('rate'),
+        #                                context.get('currency_id'),
+        #                                context.get('type'), context.get('date'),
+        #                                context.get('payment_rate_currency_id'),
+        #                                context.get('company_id'), context.get('line_dr_ids'),
+        #                                context.get('line_cr_ids'),
+        #                                context)
+        res = self.onchange_amount_new(cr, uid, ids, context.get('amount'), context.get('rate'), context.get('partner_id'),
+                                       context.get('journal_id'), context.get('currency_id'), context.get('type'),
+                                       context.get('date'), context.get('payment_rate_currency_id'),
+                                       context.get('company_id'), context.get('line_type_filters'), context=None)
         return res
 
     #def onchange_amount_new(self, cr, uid, ids, amount, rate, currency_id, date, payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context=None):
-    def onchange_amount_new(self, cr, uid, ids, amount, rate, currency_id, ttype, date,
-                            payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context=None):
+    # def onchange_amount_new(self, cr, uid, ids, amount, rate, currency_id, ttype, date,
+    #                         payment_rate_currency_id, company_id, line_dr_ids, line_cr_ids, context=None):
+    #     if context is None:
+    #         context = {}
+    #     ctx = context.copy()
+    #     ctx.update({'date': date})
+    #     #read the voucher rate with the right date in the context
+    #     currency_id = currency_id or self.pool.get('res.company').browse(cr, uid, company_id,                                                                         context=ctx).currency_id.id
+    #     voucher_rate = self.pool.get('res.currency').read(cr, uid, [currency_id], ['rate'], context=ctx)[0]['rate']
+    #     ctx.update({'voucher_special_currency': payment_rate_currency_id,'voucher_special_currency_rate': rate * voucher_rate})
+    #     res = self.onchange_line_ids(cr, uid, ids, line_dr_ids, line_cr_ids, amount, currency_id, ttype, context=ctx)
+    #     vals = self.onchange_rate(cr, uid, ids, rate, amount, currency_id, payment_rate_currency_id, company_id,
+    #                               context=ctx)
+    #     for key in vals.keys():
+    #         res[key].update(vals[key])
+    #     return res
+
+    def onchange_amount_new(self, cr, uid, ids, amount, rate, partner_id, journal_id, currency_id, ttype, date, payment_rate_currency_id, company_id, line_type_filters, context=None):
         if context is None:
             context = {}
         ctx = context.copy()
         ctx.update({'date': date})
         #read the voucher rate with the right date in the context
-        currency_id = currency_id or self.pool.get('res.company').browse(cr, uid, company_id,                                                                         context=ctx).currency_id.id
+        currency_id = currency_id or self.pool.get('res.company').browse(cr, uid, company_id, context=ctx).currency_id.id
         voucher_rate = self.pool.get('res.currency').read(cr, uid, [currency_id], ['rate'], context=ctx)[0]['rate']
-        ctx.update({'voucher_special_currency': payment_rate_currency_id,'voucher_special_currency_rate': rate * voucher_rate})
-        res = self.onchange_line_ids(cr, uid, ids, line_dr_ids, line_cr_ids, amount, currency_id, ttype, context=ctx)
-        vals = self.onchange_rate(cr, uid, ids, rate, amount, currency_id, payment_rate_currency_id, company_id,
-                                  context=ctx)
+        ctx.update({
+            'voucher_special_currency': payment_rate_currency_id,
+            'voucher_special_currency_rate': rate * voucher_rate})
+        res = self.recompute_voucher_lines_filters(cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype,
+                                                   date, line_type_filters, context=ctx)
+        vals = self.onchange_rate(cr, uid, ids, rate, amount, currency_id, payment_rate_currency_id, company_id, context=ctx)
         for key in vals.keys():
             res[key].update(vals[key])
         return res
 
-    def onchange_nro_cupon(self, cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date, line_type=None, context=None):
+    def onchange_nro_cupon(self, cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date, line_type_filters=None, context=None):
         if not journal_id:
             return {}
         if context is None:
@@ -55,15 +77,40 @@ class account_voucher(models.Model):
         ctx = context.copy()
         # not passing the payment_rate currency and the payment_rate in the context but it's ok because they are reset in recompute_payment_rate
         ctx.update({'date': date})
-        vals = self.recompute_voucher_lines(cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date,
-                                            context=ctx)
-        if line_type:
-            if line_type.get('cr') and vals['value'].get('line_cr_ids'):
-                vals['value']['line_cr_ids'] = self.filter_lines(cr, uid, ids, vals['value']['line_cr_ids'], line_type['cr'], context=context)
-                if not line_type.get('dr'):
-                    del vals['value']['line_dr_ids']
-            if line_type.get('dr') and vals['value'].get('line_dr_ids'):
-                vals['value']['line_dr_ids'] = self.filter_lines(cr, uid, ids, vals['value']['line_dr_ids'], line_type['dr'], context=context)
+        if line_type_filters and len(line_type_filters)>0:
+            vals = self.recompute_voucher_lines_filters(cr, uid, ids, partner_id, journal_id, amount, currency_id,
+                                                        ttype, date, line_type_filters, context=ctx)
+        else:
+            vals = self.recompute_voucher_lines(cr, uid, ids, partner_id, journal_id, amount, currency_id, ttype, date,
+                                                context=ctx)
+
+        # #apply filters: nro_cupon, tipo_tarjeta, dates and invoice
+        # if line_type:
+        #     if line_type.get('cr') and vals['value'].get('line_cr_ids'):
+        #         vals['value']['line_cr_ids'] = self.filter_lines(cr, uid, ids, vals['value']['line_cr_ids'], line_type['cr'], context=context)
+        #     if line_type.get('dr') and vals['value'].get('line_dr_ids'):
+        #         vals['value']['line_dr_ids'] = self.filter_lines(cr, uid, ids, vals['value']['line_dr_ids'], line_type['dr'], context=context)
+        #         vals['value']['writeoff_amount'] = self._compute_writeoff_amount(cr, uid,vals['value']['line_dr_ids'],
+        #                                                                              vals['value']['line_cr_ids'], amount, ttype)
+        #     elif not line_type.get('dr'):
+        #         del vals['value']['line_dr_ids']
+        #         vals['value']['writeoff_amount'] = self._compute_writeoff_amount(cr, uid, [], vals['value']['line_cr_ids'], amount, ttype)
+        #     if len(vals['value']['line_cr_ids']) > 0:
+        #         vals['value']['pre_line'] = 1
+        #     elif len(vals['value'].get('line_dr_ids')) > 0:
+        #         vals['value']['pre_line'] = 1
+        #
+        # # reduce the size of lists if it's greater than 80
+        # if len(vals['value']['line_cr_ids']) > 80 or len(vals['value'].get('line_dr_ids')) > 80:
+        #     if len(vals['value']['line_cr_ids']) > 80:
+        #         vals['value']['line_cr_ids'] = vals['value']['line_cr_ids'][:80]
+        #     if len(vals['value'].get('line_dr_ids')) > 80:
+        #         vals['value']['line_dr_ids'] = vals['value']['line_dr_ids'][:80]
+        #         vals['value']['writeoff_amount'] = self._compute_writeoff_amount(cr, uid,vals['value']['line_dr_ids'],
+        #                                                                      vals['value']['line_cr_ids'],amount,ttype)
+        #     if not vals['value'].get('line_dr_ids'):
+        #         vals['value']['writeoff_amount'] = self._compute_writeoff_amount(cr, uid, [], vals['value']['line_cr_ids'],
+        #                                                                          amount, ttype)
 
         vals2 = self.recompute_payment_rate(cr, uid, ids, vals, currency_id, date, ttype, journal_id, amount,
                                             context=context)
@@ -82,70 +129,290 @@ class account_voucher(models.Model):
             del (res['value']['payment_rate'])
         return res
 
-    def onchange_rate(self, cr, uid, ids, rate, amount, currency_id, payment_rate_currency_id, company_id,
-                      context=None):
-        res = {'value': {'paid_amount_in_company_currency': amount,
-                         'currency_help_label': self._get_currency_help_label(cr, uid, currency_id, rate,
-                                                                              payment_rate_currency_id,
-                                                                              context=context)}}
-        if rate and amount and currency_id:
-            company_currency = self.pool.get('res.company').browse(cr, uid, company_id, context=context).currency_id
-            # context should contain the date, the payment currency and the payment rate specified on the voucher
-            amount_in_company_currency = self.pool.get('res.currency').compute(cr, uid, currency_id,
-                                                                               company_currency.id, amount,
-                                                                               context=context)
-            res['value']['paid_amount_in_company_currency'] = amount_in_company_currency
-        return res
+    # def onchange_rate(self, cr, uid, ids, rate, amount, currency_id, payment_rate_currency_id, company_id,
+    #                   context=None):
+    #     res = {'value': {'paid_amount_in_company_currency': amount,
+    #                      'currency_help_label': self._get_currency_help_label(cr, uid, currency_id, rate,
+    #                                                                           payment_rate_currency_id,
+    #                                                                           context=context)}}
+    #     if rate and amount and currency_id:
+    #         company_currency = self.pool.get('res.company').browse(cr, uid, company_id, context=context).currency_id
+    #         # context should contain the date, the payment currency and the payment rate specified on the voucher
+    #         amount_in_company_currency = self.pool.get('res.currency').compute(cr, uid, currency_id,
+    #                                                                            company_currency.id, amount,
+    #                                                                            context=context)
+    #         res['value']['paid_amount_in_company_currency'] = amount_in_company_currency
+    #     return res
 
-    def filter_lines(self,cr, uid, ids, line_ids, filters, context=None):
-        if not context or context is None or not line_ids or len(line_ids)==0:
-            return []
+    def get_strFilters_lines(self, filters, context=None):
+        strCondition = ''
+        if not context or context is None or len(context)==0 or len(filters)==0:
+            return strCondition
 
-        date_filterFrom = context.get('date_filterFrom')
-        date_filterTo = context.get('date_filterTo')
-        tipo_tarjeta = context.get('tipo_tarjeta')
-        nro_cupon = context.get('nro_cupon')
-        invoice_filters_ids = context.get('invoice_filters_ids')
-
-        if not nro_cupon and not tipo_tarjeta and  not date_filterFrom and not date_filterTo and not invoice_filters_ids:
-            return line_ids
-        elif date_filterFrom and date_filterTo and date_filterTo<date_filterFrom:
-            raise Warning(_('The final date can not be less than initial date.'))
-
-        move_line_pool = self.pool.get('account.move.line')
-        new_lines = []
-        strCondition=''
-
-        if 'nro_cupon' in filters and nro_cupon:
-            strCondition = 'nro_cupon == move_line.move_id.vchr_ref.nro_cupon'
-        if 'tipo_tarjeta' in filters and tipo_tarjeta:
+        if 'nro_cupon' in filters and context.get('nro_cupon'):
+            strCondition = "context.get('nro_cupon') == move_line.move_id.vchr_ref.nro_cupon"
+        if 'tipo_tarjeta' in filters and context.get('tipo_tarjeta'):
             if strCondition != '':
                 strCondition += ' and '
-            strCondition += 'tipo_tarjeta == move_line.move_id.vchr_ref.tipo_tarjeta.id'
-        if 'invoice_filters_ids' in filters and invoice_filters_ids:
-            if len(invoice_filters_ids[0][2])>0:
+            strCondition += "context.get('tipo_tarjeta') == move_line.move_id.vchr_ref.tipo_tarjeta.id"
+        if 'invoice_filters_ids' in filters and context.get('invoice_filters_ids'):
+            if len(context['invoice_filters_ids'][0][2]) > 0:
                 if strCondition != '':
                     strCondition += ' and '
-                strList = ''.join(str(e)+',' for e in invoice_filters_ids[0][2])
+                strList = ''.join(str(e) + ',' for e in context['invoice_filters_ids'][0][2])
                 strCondition += 'move_line.invoice.id in [' + strList[:-1] + ']'
-        if 'date_filterFrom' in filters and 'date_filterTo' in filters and date_filterFrom and date_filterTo:
+        if 'date_filterFrom' in filters and 'date_filterTo' in filters and context.get('date_filterFrom') and context.get('date_filterTo'):
+            if context.get('date_filterTo') < context.get('date_filterFrom'):
+                raise Warning(_('The final date can not be less than initial date.'))
             if strCondition != '':
                 strCondition += ' and '
-            strCondition += "date_filterFrom <= line.get('date_original') <= date_filterTo"
-        elif 'date_filterFrom' in filters and date_filterFrom:
+            strCondition += "context.get('date_filterFrom') <= move_line.date <= context.get('date_filterTo')"
+        elif 'date_filterFrom' in filters and context.get('date_filterFrom'):
             if strCondition != '':
                 strCondition += ' and '
-            strCondition += "date_filterFrom <= line.get('date_original')"
+            strCondition += "context.get('date_filterFrom') <= move_line.date"
+        return strCondition
 
-        if strCondition:
-            for line in line_ids:
-                if isinstance(line, dict):
-                    move_line = move_line_pool.browse(cr, uid, line.get('move_line_id'), context=context)
-                    if eval(strCondition):
-                        new_lines.append(line)
+    def filter_lines(self, cr, uid, ids, account_move_lines, limit_lines, filters, context=None):
+        if not context or context is None or len(account_move_lines) == 0:
+            return []
+
+        lines_cr, lines_dr = [], []
+        #Separating the credits and debits
+        for move_line in account_move_lines:
+            # if move_line.debit:
+            if move_line.credit:
+                lines_dr.append(move_line)
+            # elif move_line.credit:
+            elif move_line.debit:
+                lines_cr.append(move_line)
+
+        new_lines_cr, new_lines_dr = [], []
+        strCondition_line_cr=''
+        if filters.get('cr'):
+            strCondition_line_cr = self.get_strFilters_lines(filters['cr'], context=context)
+        if strCondition_line_cr:
+            for move_line in lines_cr:
+                # if move_line.credit and len(new_lines_cr)<limit_lines:
+                if len(new_lines_cr) < limit_lines:
+                    if eval(strCondition_line_cr):
+                        new_lines_cr.append(move_line)
         else:
-            return line_ids
-        return new_lines
+            new_lines_cr = lines_cr
+
+        strCondition_line_dr=''
+        if filters.get('dr'):
+            strCondition_line_dr = self.get_strFilters_lines(filters['dr'], context=context)
+        if strCondition_line_dr:
+            for move_line in lines_dr:
+                if len(new_lines_dr) < limit_lines:
+                    if eval(strCondition_line_dr):
+                        new_lines_dr.append(move_line)
+        else:
+            new_lines_dr = lines_dr
+
+        # if strCondition_line_dr and strCondition_line_cr:
+        #     for move_line in account_move_lines:
+        #         #if move_line.debit and len(new_lines_dr)<limit_lines:
+        #         if move_line.credit and len(new_lines_dr) < limit_lines:
+        #             if eval(strCondition_line_dr):
+        #                 new_lines_dr.append(move_line)
+        #         #elif move_line.credit and len(new_lines_cr)<limit_lines:
+        #         elif move_line.debit and len(new_lines_cr) < limit_lines:
+        #             if eval(strCondition_line_cr):
+        #                 new_lines_cr.append(move_line)
+        # elif strCondition_line_dr:
+        #     for move_line in account_move_lines:
+        #         #if move_line.debit and len(new_lines_dr)<limit_lines:
+        #         if move_line.credit and len(new_lines_dr) < limit_lines:
+        #             if eval(strCondition_line_dr):
+        #                 new_lines_dr.append(move_line)
+        # elif strCondition_line_cr:
+        #     for move_line in account_move_lines:
+        #         #if move_line.credit and len(new_lines_cr)<limit_lines:
+        #         if move_line.debit and len(new_lines_cr) < limit_lines:
+        #             if eval(strCondition_line_cr):
+        #                 new_lines_cr.append(move_line)
+        # else:
+        #     for move_line in account_move_lines:
+        #         #if move_line.debit and len(new_lines_dr)<limit_lines:
+        #         if move_line.credit and len(new_lines_dr) < limit_lines:
+        #             new_lines_dr.append(move_line)
+        #         #elif move_line.credit and len(new_lines_cr)<limit_lines:
+        #         elif move_line.debit and len(new_lines_cr) < limit_lines:
+        #             new_lines_cr.append(move_line)
+        if len(new_lines_cr)>limit_lines:
+            new_lines_cr = new_lines_cr[:limit_lines]
+        if len(new_lines_dr)>limit_lines:
+            new_lines_dr = new_lines_dr[:limit_lines]
+
+        return new_lines_cr + new_lines_dr
+
+    def recompute_voucher_lines_filters(self, cr, uid, ids, partner_id, journal_id, price, currency_id, ttype, date,
+                                        line_type_filters, context=None):
+        """
+        Returns a dict that contains new values filtered by the parameters indicated in the context, and context
+
+        @param partner_id: latest value from user input for field partner_id
+        @param args: other arguments
+        @param context: context arguments, like lang, time zone
+
+        @return: Returns a dict which contains new values, and context
+        """
+        def _remove_noise_in_o2m():
+            """if the line is partially reconciled, then we must pay attention to display it only once and
+                in the good o2m.
+                This function returns True if the line is considered as noise and should not be displayed
+            """
+            if line.reconcile_partial_id:
+                if currency_id == line.currency_id.id:
+                    if line.amount_residual_currency <= 0:
+                        return True
+                else:
+                    if line.amount_residual <= 0:
+                        return True
+            return False
+
+        if context is None:
+            context = {}
+        context_multi_currency = context.copy()
+
+        currency_pool = self.pool.get('res.currency')
+        move_line_pool = self.pool.get('account.move.line')
+        partner_pool = self.pool.get('res.partner')
+        journal_pool = self.pool.get('account.journal')
+        line_pool = self.pool.get('account.voucher.line')
+
+        #set default values
+        default = {
+            'value': {'line_dr_ids': [], 'line_cr_ids': [], 'pre_line': False},
+        }
+
+        # drop existing lines
+        line_ids = ids and line_pool.search(cr, uid, [('voucher_id', '=', ids[0])])
+        for line in line_pool.browse(cr, uid, line_ids, context=context):
+            if line.type == 'cr':
+                default['value']['line_cr_ids'].append((2, line.id))
+            else:
+                default['value']['line_dr_ids'].append((2, line.id))
+
+        if not partner_id or not journal_id:
+            return default
+
+        journal = journal_pool.browse(cr, uid, journal_id, context=context)
+        partner = partner_pool.browse(cr, uid, partner_id, context=context)
+        currency_id = currency_id or journal.company_id.currency_id.id
+
+        total_credit = 0.0
+        total_debit = 0.0
+        account_type = None
+        if context.get('account_id'):
+            account_type = self.pool['account.account'].browse(cr, uid, context['account_id'], context=context).type
+        if ttype == 'payment':
+            if not account_type:
+                account_type = 'payable'
+            total_debit = price or 0.0
+        else:
+            total_credit = price or 0.0
+            if not account_type:
+                account_type = 'receivable'
+
+        if not context.get('move_line_ids', False):
+            ids = move_line_pool.search(cr, uid, [('state','=','valid'), ('account_id.type', '=', account_type), ('reconcile_id', '=', False), ('partner_id', '=', partner_id)], context=context)
+        else:
+            ids = context['move_line_ids']
+        invoice_id = context.get('invoice_id', False)
+        company_currency = journal.company_id.currency_id.id
+        move_lines_found = []
+
+        #order the lines by most old first
+        ids.reverse()
+        #account_move_lines = move_line_pool.browse(cr, uid, ids, context=context)
+        #Apply filters and limit for lines
+        account_move_lines = self.filter_lines(cr, uid, ids, move_line_pool.browse(cr, uid, ids, context=context), 80, line_type_filters, context=context)
+
+        #compute the total debit/credit and look for a matching open amount or invoice
+        for line in account_move_lines:
+            if _remove_noise_in_o2m():
+                continue
+
+            if invoice_id:
+                if line.invoice.id == invoice_id:
+                    #if the invoice linked to the voucher line is equal to the invoice_id in context
+                    #then we assign the amount on that line, whatever the other voucher lines
+                    move_lines_found.append(line.id)
+            elif currency_id == company_currency:
+                #otherwise treatments is the same but with other field names
+                if line.amount_residual == price:
+                    #if the amount residual is equal the amount voucher, we assign it to that voucher
+                    #line, whatever the other voucher lines
+                    move_lines_found.append(line.id)
+                    break
+                #otherwise we will split the voucher amount on each line (by most old first)
+                total_credit += line.credit or 0.0
+                total_debit += line.debit or 0.0
+            elif currency_id == line.currency_id.id:
+                if line.amount_residual_currency == price:
+                    move_lines_found.append(line.id)
+                    break
+                total_credit += line.credit and line.amount_currency or 0.0
+                total_debit += line.debit and line.amount_currency or 0.0
+
+        remaining_amount = price
+        #voucher line creation
+        for line in account_move_lines:
+
+            if _remove_noise_in_o2m():
+                continue
+
+            if line.currency_id and currency_id == line.currency_id.id:
+                amount_original = abs(line.amount_currency)
+                amount_unreconciled = abs(line.amount_residual_currency)
+            else:
+                #always use the amount booked in the company currency as the basis of the conversion into the voucher currency
+                amount_original = currency_pool.compute(cr, uid, company_currency, currency_id, line.credit or line.debit or 0.0, context=context_multi_currency)
+                amount_unreconciled = currency_pool.compute(cr, uid, company_currency, currency_id, abs(line.amount_residual), context=context_multi_currency)
+            line_currency_id = line.currency_id and line.currency_id.id or company_currency
+            rs = {
+                'name':line.move_id.name,
+                'type': line.credit and 'dr' or 'cr',
+                'move_line_id':line.id,
+                'account_id':line.account_id.id,
+                'amount_original': amount_original,
+                'amount': (line.id in move_lines_found) and min(abs(remaining_amount), amount_unreconciled) or 0.0,
+                'date_original':line.date,
+                'date_due':line.date_maturity,
+                'amount_unreconciled': amount_unreconciled,
+                'currency_id': line_currency_id,
+            }
+            remaining_amount -= rs['amount']
+            #in case a corresponding move_line hasn't been found, we now try to assign the voucher amount
+            #on existing invoices: we split voucher amount by most old first, but only for lines in the same currency
+            if not move_lines_found:
+                if currency_id == line_currency_id:
+                    if line.credit:
+                        amount = min(amount_unreconciled, abs(total_debit))
+                        rs['amount'] = amount
+                        total_debit -= amount
+                    else:
+                        amount = min(amount_unreconciled, abs(total_credit))
+                        rs['amount'] = amount
+                        total_credit -= amount
+
+            if rs['amount_unreconciled'] == rs['amount']:
+                rs['reconcile'] = True
+
+            if rs['type'] == 'cr':
+                default['value']['line_cr_ids'].append(rs)
+            else:
+                default['value']['line_dr_ids'].append(rs)
+
+            if len(default['value']['line_cr_ids']) > 0:
+                default['value']['pre_line'] = 1
+            elif len(default['value']['line_dr_ids']) > 0:
+                default['value']['pre_line'] = 1
+            default['value']['writeoff_amount'] = self._compute_writeoff_amount(cr, uid, default['value']['line_dr_ids'], default['value']['line_cr_ids'], price, ttype)
+        return default
 
 class account_voucher_line(models.Model):
     _inherit = 'account.voucher.line'
